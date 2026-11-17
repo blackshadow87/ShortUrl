@@ -6,7 +6,7 @@ from flask import Flask, jsonify, redirect, request
 
 import config
 import database
-from codes import encode_id
+from codes import generate_code
 
 app = Flask(__name__)
 database.init_app(app)
@@ -47,18 +47,18 @@ def create_shortlinks():
         )
 
     db = database.get_db()
-    try:
-        cursor = db.execute(
-            "INSERT INTO links (code, created_at, target_url) VALUES (?, ?, ?)",
-            ("", datetime.now(UTC).isoformat(), target_url),
-        )
-        row_id = cursor.lastrowid
-        code = encode_id(row_id)
-        db.execute("UPDATE links SET code = ? WHERE id = ?", (code, row_id))
-        db.commit()
-    except sqlite3.Error:
-        db.rollback()
-        return error_response("internal_error", "Внутренняя ошибка сервиса", 500)
+    for _ in range(5):
+        code = generate_code()
+        try:
+            db.execute(
+                "INSERT INTO links (code, created_at, target_url) VALUES (?, ?, ?)",
+                (code, datetime.now(UTC).isoformat(), target_url),
+            )
+            db.commit()
+            return code
+        except sqlite3.IntegrityError:
+            db.rollback()
+            raise RuntimeError("Не удалось сгенерировать уникальный код")
 
     return jsonify(
         {
@@ -67,5 +67,3 @@ def create_shortlinks():
             "target_url": target_url,
         }
     ), 201
-
-
