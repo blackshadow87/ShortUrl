@@ -2,11 +2,18 @@ import sqlite3
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, jsonify, request
 
-import config
 import database
 from codes import generate_code
+import tomllib
+from pathlib import Path
+
+
+def load_config(path: str = "config.toml") -> dict:
+    with open(Path(__file__).resolve().parent / path, "rb") as f:
+        return tomllib.load(f)
+
 
 app = Flask(__name__)
 database.init_app(app)
@@ -63,7 +70,7 @@ def create_shortlinks():
     return jsonify(
         {
             "code": code,
-            "short_url": f"{config.BASE_URL}/{code}",
+            "short_url": f"{load_config().BASE_URL}/{code}",
             "target_url": target_url,
         }
     ), 201
