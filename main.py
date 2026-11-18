@@ -33,6 +33,7 @@ def health_check():
     return jsonify({"status": "ok"}), 200
 
 
+<<<<<<< HEAD
 @app.post("/api/links")
 def create_shortlinks():
     data = request.get_json(silent=True)
@@ -40,6 +41,18 @@ def create_shortlinks():
         return error_response(
             "invalid_json", "Тело запроса не является корректным JSON", 400
         )
+=======
+def register_routes(app: Flask) -> None:
+    @app.errorhandler(404)
+    def resource_not_found(error):
+        return error_response(
+            "not_found", "Ручка или короткий код не найдены", 404
+        )
+
+    @app.get("/")
+    def index():
+        return app.send_static_file("index.html")
+>>>>>>> a83b955 (fix: minors)
 
     target_url = data.get("url")
     if not isinstance(target_url, str) or not target_url.strip():
@@ -61,6 +74,7 @@ def create_shortlinks():
                 "INSERT INTO links (code, created_at, target_url) VALUES (?, ?, ?)",
                 (code, datetime.now(UTC).isoformat(), target_url),
             )
+<<<<<<< HEAD
             db.commit()
             return code
         except sqlite3.IntegrityError:
@@ -74,3 +88,26 @@ def create_shortlinks():
             "target_url": target_url,
         }
     ), 201
+=======
+        invalid_url = error_response(
+            "invalid_url", "Поле `url` отсутствует или не прошло валидацию", 422
+        )
+        target_url = data.get("url")
+        if not isinstance(target_url, str) or not target_url.strip():
+            return invalid_url
+        target_url = target_url.strip()
+
+        parsed = urlparse(target_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return invalid_url
+
+        code = create_link(target_url)
+
+        return jsonify(
+            {
+                "code": code,
+                "short_url": f"{current_app.config["BASE_URL"]}/{code}",
+                "target_url": target_url,
+            }
+        ), 201
+>>>>>>> a83b955 (fix: minors)
