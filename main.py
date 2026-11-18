@@ -58,9 +58,15 @@ def register_routes(app: Flask) -> None:
         target_url = data.get("url")
         if not isinstance(target_url, str) or not target_url.strip():
             return invalid_url
+
         target_url = target_url.strip()
 
-        parsed = urlparse(target_url)
+        if any(ch.isspace() for ch in target_url):
+            return invalid_url
+        try:
+            parsed = urlparse(target_url)
+        except:
+            return invalid_url
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             return invalid_url
 
