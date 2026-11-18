@@ -1,18 +1,9 @@
 import sqlite3
-
-from flask import g
-
-import tomllib
-from pathlib import Path
-
-
-def load_config(path: str = "config.toml") -> dict:
-    with open(Path(__file__).resolve().parent / path, "rb") as f:
-        return tomllib.load(f)
+from flask import g, current_app
 
 
 def init_app(app):
-    create_db()
+    create_db(app.config["DATABASE_PATH"])
     app.teardown_appcontext(close_db)
 
 
@@ -23,13 +14,13 @@ def get_db():
 
 
 def connect_db():
-    conn = sqlite3.connect(load_config().DATABASE_PATH)
+    conn = sqlite3.connect(current_app.config["DATABASE_PATH"])
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def create_db():
-    with sqlite3.connect(load_config().DATABASE_PATH) as conn:
+def create_db(path: str):
+    with sqlite3.connect(path) as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS links (

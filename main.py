@@ -1,47 +1,35 @@
-import sqlite3
-from datetime import UTC, datetime
 from urllib.parse import urlparse
-
-from flask import Flask, jsonify, request
-
-import database
-from codes import generate_code
-import tomllib
 from pathlib import Path
-
-
-def load_config(path: str = "config.toml") -> dict:
-    with open(Path(__file__).resolve().parent / path, "rb") as f:
-        return tomllib.load(f)
-
-
-app = Flask(__name__)
-database.init_app(app)
+from flask import Flask, jsonify, request, current_app
+from repository import create_link
+import database
+import tomllib
 
 
 def error_response(code, message, status):
     return jsonify({"error": {"code": code, "message": message}}), status
 
 
-@app.get("/")
-def index():
-    return app.send_static_file("index.html")
+def load_config(path: str = "config.toml") -> dict:
+    with open(Path(__file__).resolve().parent / path, "rb") as f:
+        raw = tomllib.load(f)
+    cfg = {k.upper(): v for k, v in raw.items()}
+    cfg["DATABASE_PATH"] = str(
+        Path(__file__).resolve().parent / cfg["DATABASE_PATH"]
+    )
+    return cfg
 
 
-@app.get("/health")
-def health_check():
-    return jsonify({"status": "ok"}), 200
+def create_app(config: dict | None = None) -> Flask:
+    app = Flask(__name__)
+    app.config.from_mapping(load_config())
+    if config:
+        app.config.from_mapping(config)
+    database.init_app(app)
+    register_routes(app)
+    return app
 
 
-<<<<<<< HEAD
-@app.post("/api/links")
-def create_shortlinks():
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return error_response(
-            "invalid_json", "Тело запроса не является корректным JSON", 400
-        )
-=======
 def register_routes(app: Flask) -> None:
     @app.errorhandler(404)
     def resource_not_found(error):
@@ -52,43 +40,18 @@ def register_routes(app: Flask) -> None:
     @app.get("/")
     def index():
         return app.send_static_file("index.html")
->>>>>>> a83b955 (fix: minors)
 
-    target_url = data.get("url")
-    if not isinstance(target_url, str) or not target_url.strip():
-        return error_response(
-            "invalid_url", "Поле `url` отсутствует или не прошло валидацию", 422
-        )
+    @app.get("/health")
+    def health_check():
+        return jsonify({"status": "ok"}), 200
 
-    parsed = urlparse(target_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return error_response(
-            "invalid_url", "Поле `url` отсутствует или не прошло валидацию", 422
-        )
-
-    db = database.get_db()
-    for _ in range(5):
-        code = generate_code()
-        try:
-            db.execute(
-                "INSERT INTO links (code, created_at, target_url) VALUES (?, ?, ?)",
-                (code, datetime.now(UTC).isoformat(), target_url),
+    @app.post("/api/links")
+    def create_shortlinks():
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return error_response(
+                "invalid_json", "Тело запроса не является корректным JSON", 400
             )
-<<<<<<< HEAD
-            db.commit()
-            return code
-        except sqlite3.IntegrityError:
-            db.rollback()
-            raise RuntimeError("Не удалось сгенерировать уникальный код")
-
-    return jsonify(
-        {
-            "code": code,
-            "short_url": f"{load_config().BASE_URL}/{code}",
-            "target_url": target_url,
-        }
-    ), 201
-=======
         invalid_url = error_response(
             "invalid_url", "Поле `url` отсутствует или не прошло валидацию", 422
         )
@@ -110,4 +73,3 @@ def register_routes(app: Flask) -> None:
                 "target_url": target_url,
             }
         ), 201
->>>>>>> a83b955 (fix: minors)
